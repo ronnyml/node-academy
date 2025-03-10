@@ -15,7 +15,7 @@ interface ReviewGroupByResult {
 }
 
 interface MonthlyGrowth {
-  month: number; // 1-12
+  month: number;
   year: number;
   studentCount: number;
 }
@@ -153,27 +153,59 @@ export const getUserGrowthStats = async (): Promise<{ growth: MonthlyGrowth[] }>
   const currentMonth = currentDate.getMonth() + 1;
   const startOfYear = new Date(currentYear, 0, 1);
 
-  const enrollments = await prisma.enrollment.findMany({
-    where: {
-      enrolledAt: {
-        gte: startOfYear,
-        lte: currentDate,
-      },
-    },
-    select: {
-      enrolledAt: true,
-    },
-  });
+  interface MonthlyGrowthWithRevenue extends MonthlyGrowth {
+    totalRevenue: number;
+  }
 
-  const growthData: MonthlyGrowth[] = Array.from({ length: currentMonth }, (_, i) => ({
-    month: i + 1,
-    year: currentYear,
-    studentCount: 0,
-  }));
+  const [enrollments, payments] = await Promise.all([
+    prisma.enrollment.findMany({
+      where: {
+        enrolledAt: {
+          gte: startOfYear,
+          lte: currentDate,
+        },
+      },
+      select: {
+        enrolledAt: true,
+      },
+    }),
+
+    prisma.payment.findMany({
+      where: {
+        paidAt: {
+          gte: startOfYear,
+          lte: currentDate,
+        },
+      },
+      select: {
+        amount: true,
+        paidAt: true,
+      },
+    })
+  ]);
+
+  const growthData: MonthlyGrowthWithRevenue[] = Array.from(
+    { length: currentMonth },
+    (_, i) => ({
+      month: i + 1,
+      year: currentYear,
+      studentCount: 0,
+      totalRevenue: 0,
+    })
+  );
 
   enrollments.forEach((enrollment) => {
     const month = enrollment.enrolledAt.getMonth();
     growthData[month].studentCount += 1;
+  });
+
+  payments.forEach((payment) => {
+    const month = payment.paidAt.getMonth();
+    growthData[month].totalRevenue += Number(payment.amount);
+  });
+
+  growthData.forEach(data => {
+    data.totalRevenue = Number(data.totalRevenue.toFixed(2));
   });
 
   return { growth: growthData };
