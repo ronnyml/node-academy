@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from "cors";
 import authRoutes from './routes/auth.routes';
 import categoryRoutes from './routes/category.routes';
 import courseRoutes from './routes/course.routes';
@@ -7,6 +8,7 @@ import userRoutes from './routes/user.routes';
 import { authenticate } from './middlewares/auth.middleware';
 
 const app = express();
+app.use(cors());
 
 app.get('/api', (req, res) => {
   res.send('React Academy API');
