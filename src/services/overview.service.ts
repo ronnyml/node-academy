@@ -31,6 +31,7 @@ export const getOverviewStats = async () => {
     totalCourses,
     avgCourseRating,
     totalEnrollments,
+    totalEnrollmentsCurrentMonth,
   ] = await Promise.all([
     // Total teachers
     prisma.user.count({
@@ -68,8 +69,18 @@ export const getOverviewStats = async () => {
     prisma.review.aggregate({
       _avg: { rating: true },
     }),
+
     // Total enrollments
     prisma.enrollment.count(),
+
+    prisma.enrollment.count({
+      where: {
+        enrolledAt: {
+          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          lte: new Date(),
+        },
+      },
+    }),
   ]);
 
   return {
@@ -84,6 +95,7 @@ export const getOverviewStats = async () => {
     total_courses: totalCourses,
     avg_course_rating: avgCourseRating._avg?.rating ? Number(avgCourseRating._avg.rating.toFixed(1)) : 0,
     total_enrollments: totalEnrollments,
+    total_enrollments_current_month: totalEnrollmentsCurrentMonth,
   };
 };
 
