@@ -14,6 +14,12 @@ interface ReviewGroupByResult {
   };
 }
 
+interface MonthlyGrowth {
+  month: number; // 1-12
+  year: number;
+  studentCount: number;
+}
+
 export const getOverviewStats = async () => {
   const [
     teacherStats,
@@ -127,4 +133,36 @@ export const getTopCourses = async () => {
       top_rated: topRated,
     },
   };
+};
+
+export const getUserGrowthStats = async (): Promise<{ growth: MonthlyGrowth[] }> => {
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+  const startOfYear = new Date(currentYear, 0, 1);
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      enrolledAt: {
+        gte: startOfYear,
+        lte: currentDate,
+      },
+    },
+    select: {
+      enrolledAt: true,
+    },
+  });
+
+  const growthData: MonthlyGrowth[] = Array.from({ length: currentMonth }, (_, i) => ({
+    month: i + 1,
+    year: currentYear,
+    studentCount: 0,
+  }));
+
+  enrollments.forEach((enrollment) => {
+    const month = enrollment.enrolledAt.getMonth();
+    growthData[month].studentCount += 1;
+  });
+
+  return { growth: growthData };
 };

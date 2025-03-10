@@ -1,5 +1,5 @@
 import express from 'express';
-import { getOverview, getCourses } from '../controllers/overview.controller';
+import { getOverview, getCourses, getUserGrowth } from '../controllers/overview.controller';
 
 const router = express.Router();
 
@@ -8,5 +8,8 @@ router.route('/')
 
 router.route('/courses')
   .get(getCourses);
+
+router.route('/growth')
+  .get(getUserGrowth);
 
 export default router;
