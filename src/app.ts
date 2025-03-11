@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import compression from "compression";
 import cors from "cors";
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
@@ -19,7 +20,7 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
-
+app.use(compression());
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   res.on('finish', () => {
