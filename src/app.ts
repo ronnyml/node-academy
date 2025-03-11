@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from "cors";
+import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import authRoutes from './routes/auth.routes';
 import categoryRoutes from './routes/category.routes';
@@ -14,6 +15,7 @@ import logger from './config/logger';
 const API_BASE_PATH = `/api/${API_VERSION}`;
 
 const app = express();
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
