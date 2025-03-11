@@ -6,60 +6,79 @@ import {
   updateCategory,
   deleteCategory,
 } from '../services/category.service';
+import { asyncHandler } from '../utils/async-handler.util';
+import { BadRequestError, NotFoundError } from '../types/error.types';
 
-export const getCategories = async (req: Request, res: Response) => {
-  try {
-    const categories = await getAllCategories();
-    res.json(categories);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching categories' });
-  }
-};
+export const getCategories = asyncHandler(async (req: Request, res: Response) => {
+  const categories = await getAllCategories();
+  res.json({
+    success: true,
+    data: categories
+  });
+});
 
-export const getCategoryById = async (req: Request, res: Response) => {
-  try {
-    const categoryId = parseInt(req.params.id, 10);
-    const category = await getCategory(categoryId);
-    res.json(category);
-  } catch (error) {
-    if ((error as Error).message === 'Invalid category ID') {
-      const err = error as Error;
-      res.status(400).json({ message: err.message });
-    }
-    if ((error as Error).message === 'Category not found') {
-      const err = error as Error;
-      res.status(404).json({ message: err.message });
-    }
-    console.error('Error fetching category:', error as Error);
-    res.status(500).json({ message: 'Internal server error' });
+export const getCategoryById = asyncHandler(async (req: Request, res: Response) => {
+  const categoryId = parseInt(req.params.id, 10);
+  if (isNaN(categoryId)) {
+    throw new BadRequestError('Invalid category ID');
   }
-};
 
-export const createNewCategory = async (req: Request, res: Response) => {
-  try {
-    const { name, description } = req.body;
-    const category = await createCategoryService(name, description);
-    res.status(201).json(category);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating category' });
+  const category = await getCategory(categoryId);
+  if (!category) {
+    throw new NotFoundError('Category');
   }
-};
 
-export const updateCategoryById = async (req: Request, res: Response) => {
-  try {
-    const { name, description } = req.body;
-    const category = await updateCategory(Number(req.params.id), name, description);
-    res.json(category);
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating category' });
-  }
-};
+  res.json({
+    success: true,
+    data: category
+  });
+});
 
-export const deleteCategoryById = async (req: Request, res: Response) => {
-  try {
-    await deleteCategory(Number(req.params.id));
-    res.json({ message: 'Category deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting category' });
+export const createNewCategory = asyncHandler(async (req: Request, res: Response) => {
+  const { name, description } = req.body;
+  if (!name) {
+    throw new BadRequestError('Category name is required');
   }
-};
+
+  const category = await createCategoryService(name, description);
+  res.status(201).json({
+    success: true,
+    data: category
+  });
+});
+
+export const updateCategoryById = asyncHandler(async (req: Request, res: Response) => {
+  const categoryId = Number(req.params.id);
+  if (isNaN(categoryId)) {
+    throw new BadRequestError('Invalid category ID');
+  }
+
+  const { name, description } = req.body;
+  const category = await updateCategory(categoryId, name, description);
+
+  if (!category) {
+    throw new NotFoundError('Category');
+  }
+
+  res.json({
+    success: true,
+    data: category
+  });
+});
+
+export const deleteCategoryById = asyncHandler(async (req: Request, res: Response) => {
+  const categoryId = Number(req.params.id);
+  if (isNaN(categoryId)) {
+    throw new BadRequestError('Invalid category ID');
+  }
+
+  const result = await deleteCategory(categoryId);
+  if (!result) {
+    throw new NotFoundError('Category');
+  }
+
+  res.json({
+    success: true,
+    message: 'Category deleted successfully'
+  });
+});

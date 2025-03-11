@@ -6,67 +6,120 @@ import {
   updateCourseSection,
   deleteCourseSection,
 } from '../services/courseSection.service';
+import { asyncHandler } from '../utils/async-handler.util';
+import { BadRequestError, NotFoundError, ValidationError } from '../types/error.types';
 
-export const getCourseSections = async (req: Request, res: Response) => {
-  try {
-    const { courseId, search, page, limit } = req.query;
-
-    const sections = await getAllCourseSections(
-      courseId ? Number(courseId) : undefined,
-      search ? String(search) : undefined,
-      page ? Number(page) : 1,
-      limit ? Number(limit) : undefined
-    );
-
-    res.json(sections);
-  } catch (error) {
-    console.error("Error fetching course sections:", error);
-    res.status(500).json({ message: "Error fetching course sections" });
+export const getCourseSections = asyncHandler(async (req: Request, res: Response) => {
+  const { courseId, search, page, limit } = req.query;
+  const pageNum = page ? Number(page) : 1;
+  if (page && (isNaN(pageNum) || pageNum < 1)) {
+    throw new BadRequestError('Page must be a positive number');
   }
-};
 
-export const getCourseSectionById = async (req: Request, res: Response) => {
-  try {
-    const sectionId = parseInt(req.params.id, 10);
-    const section = await getCourseSection(sectionId);
-    res.json(section);
-  } catch (error) {
-    if ((error as Error).message === 'Invalid section ID') {
-      res.status(400).json({ message: (error as Error).message });
-    } else if ((error as Error).message === 'Section not found') {
-      res.status(404).json({ message: (error as Error).message });
-    } else {
-      console.error('Error fetching course section:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
+  const limitNum = limit ? Number(limit) : 10;
+  if (limit && (isNaN(limitNum) || limitNum < 1)) {
+    throw new BadRequestError('Limit must be a positive number');
   }
-};
 
-export const createNewCourseSection = async (req: Request, res: Response) => {
-  try {
-    const { courseId, title, description } = req.body;
-    const section = await createCourseSectionService(courseId, title, description);
-    res.status(201).json(section);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating course section' });
-  }
-};
+  const courseIdNum = courseId ? Number(courseId) : undefined;
+  const sections = await getAllCourseSections(
+    courseIdNum,
+    search ? String(search) : undefined,
+    pageNum,
+    limitNum
+  );
 
-export const updateCourseSectionById = async (req: Request, res: Response) => {
-  try {
-    const { title, description } = req.body;
-    const section = await updateCourseSection(Number(req.params.id), title, description);
-    res.json(section);
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating course section' });
-  }
-};
+  res.json({
+    success: true,
+    data: sections
+  });
+});
 
-export const deleteCourseSectionById = async (req: Request, res: Response) => {
-  try {
-    await deleteCourseSection(Number(req.params.id));
-    res.json({ message: 'Course section deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting course section' });
+export const getCourseSectionById = asyncHandler(async (req: Request, res: Response) => {
+  const sectionId = parseInt(req.params.id, 10);
+  if (isNaN(sectionId)) {
+    throw new BadRequestError('Invalid section ID');
   }
-};
+
+  const section = await getCourseSection(sectionId);
+  if (!section) {
+    throw new NotFoundError('Course section');
+  }
+
+  res.json({
+    success: true,
+    data: section
+  });
+});
+
+export const createNewCourseSection = asyncHandler(async (req: Request, res: Response) => {
+  const { courseId, title, description } = req.body;
+  const errors: Record<string, string> = {};
+
+  if (!courseId) errors.courseId = 'Course ID is required';
+  if (!title) errors.title = 'Title is required';
+  if (courseId && (isNaN(Number(courseId)) || Number(courseId) < 1)) {
+    errors.courseId = 'Course ID must be a positive number';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    throw new ValidationError(errors);
+  }
+
+  const section = await createCourseSectionService(
+    Number(courseId),
+    String(title),
+    description ? String(description) : ''
+  );
+
+  res.status(201).json({
+    success: true,
+    data: section
+  });
+});
+
+export const updateCourseSectionById = asyncHandler(async (req: Request, res: Response) => {
+  const sectionId = Number(req.params.id);
+  if (isNaN(sectionId)) {
+    throw new BadRequestError('Invalid section ID');
+  }
+
+  const { title, description } = req.body;
+  if (!title && description === undefined) {
+    throw new BadRequestError('At least one field must be provided for update');
+  }
+
+  const titleStr = title !== undefined ? String(title) : undefined;
+  const descriptionStr = description !== undefined ? String(description) : undefined;
+  const section = await updateCourseSection(
+    sectionId,
+    titleStr,
+    descriptionStr
+  );
+
+  if (!section) {
+    throw new NotFoundError('Course section');
+  }
+
+  res.json({
+    success: true,
+    data: section
+  });
+});
+
+export const deleteCourseSectionById = asyncHandler(async (req: Request, res: Response) => {
+  const sectionId = Number(req.params.id);
+  if (isNaN(sectionId)) {
+    throw new BadRequestError('Invalid section ID');
+  }
+
+  const result = await deleteCourseSection(sectionId);
+  if (!result) {
+    throw new NotFoundError('Course section');
+  }
+
+  res.json({
+    success: true,
+    message: 'Course section deleted successfully'
+  });
+});

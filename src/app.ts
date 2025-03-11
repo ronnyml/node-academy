@@ -10,6 +10,8 @@ import courseSectionRoutes from './routes/courseSection.routes';
 import overviewRoutes from './routes/overview.routes';
 import userRoutes from './routes/user.routes';
 import { authenticate } from './middlewares/auth.middleware';
+import { errorHandler } from './middlewares/error-handler.middleware';
+import { requestIdMiddleware } from './middlewares/request-id.middleware';
 import { generateSwaggerDocs, API_VERSION } from './config/swagger.config';
 import logger from './config/logger';
 import { publicLimiter, authLimiter, apiLimiter } from './config/rateLimiters';
@@ -21,6 +23,9 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(compression());
+app.use(requestIdMiddleware);
+
+
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   res.on('finish', () => {

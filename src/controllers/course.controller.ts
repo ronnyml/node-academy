@@ -6,58 +6,146 @@ import {
   updateCourse,
   deleteCourse,
 } from '../services/course.service';
+import { asyncHandler } from '../utils/async-handler.util';
+import { BadRequestError, NotFoundError, ValidationError } from '../types/error.types';
 
-export const getCourses = async (req: Request, res: Response) => {
-  try {
-    const { categoryId, teacherId, search, page, limit } = req.query;
-    const courses = await getAllCourses(
-      categoryId ? Number(categoryId) : undefined,
-      teacherId ? Number(teacherId) : undefined,
-      search ? String(search) : undefined,
-      page ? Number(page) : 1,
-      limit ? Number(limit) : undefined
-    );
-    res.json(courses);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching courses' });
+export const getCourses = asyncHandler(async (req: Request, res: Response) => {
+  const { categoryId, teacherId, search, page, limit } = req.query;
+  const pageNum = page ? Number(page) : 1;
+  if (page && (isNaN(pageNum) || pageNum < 1)) {
+    throw new BadRequestError('Page must be a positive number');
   }
-};
 
-export const getCourse = async (req: Request, res: Response) => {
-  try {
-    const courseId = parseInt(req.params.id, 10);
-    const course = await getCourseById(courseId);
-    res.json(course);
-  } catch (error) {
-    res.status(404).json({ message: 'Course not found' });
+  const limitNum = limit ? Number(limit) : 10;
+  if (limit && (isNaN(limitNum) || limitNum < 1)) {
+    throw new BadRequestError('Limit must be a positive number');
   }
-};
 
-export const createNewCourse = async (req: Request, res: Response) => {
-  try {
-    const { title, description, categoryId, teacherId, price } = req.body;
-    const course = await createCourse(title, description, categoryId, teacherId, price);
-    res.status(201).json(course);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating course' });
-  }
-};
+  const categoryIdNum = categoryId ? Number(categoryId) : undefined;
+  const teacherIdNum = teacherId ? Number(teacherId) : undefined;
+  const courses = await getAllCourses(
+    categoryIdNum,
+    teacherIdNum,
+    search ? String(search) : undefined,
+    pageNum,
+    limitNum
+  );
 
-export const updateCourseById = async (req: Request, res: Response) => {
-  try {
-    const { title, description, categoryId, teacherId, price } = req.body;
-    const course = await updateCourse(Number(req.params.id), title, description, categoryId, teacherId, price);
-    res.json(course);
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating course' });
-  }
-};
+  res.json({
+    success: true,
+    data: courses
+  });
+});
 
-export const deleteCourseById = async (req: Request, res: Response) => {
-  try {
-    await deleteCourse(Number(req.params.id));
-    res.json({ message: 'Course deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting course' });
+export const getCourse = asyncHandler(async (req: Request, res: Response) => {
+  const courseId = parseInt(req.params.id, 10);
+  if (isNaN(courseId)) {
+    throw new BadRequestError('Invalid course ID');
   }
-};
+
+  const course = await getCourseById(courseId);
+  if (!course) {
+    throw new NotFoundError('Course');
+  }
+
+  res.json({
+    success: true,
+    data: course
+  });
+});
+
+export const createNewCourse = asyncHandler(async (req: Request, res: Response) => {
+  const { title, description, categoryId, teacherId, price } = req.body;
+  const errors: Record<string, string> = {};
+  if (!title) errors.title = 'Title is required';
+  if (!categoryId) errors.categoryId = 'Category ID is required';
+  if (!teacherId) errors.teacherId = 'Teacher ID is required';
+  if (price !== undefined && (isNaN(Number(price)) || Number(price) < 0)) {
+    errors.price = 'Price must be a non-negative number';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    throw new ValidationError(errors);
+  }
+
+  const priceNum = price !== undefined ? Number(price) : 0;
+  const course = await createCourse(
+    String(title),
+    description ? String(description) : '',
+    Number(categoryId),
+    Number(teacherId),
+    priceNum
+  );
+
+  res.status(201).json({
+    success: true,
+    data: course
+  });
+});
+
+export const updateCourseById = asyncHandler(async (req: Request, res: Response) => {
+  const courseId = Number(req.params.id);
+  if (isNaN(courseId)) {
+    throw new BadRequestError('Invalid course ID');
+  }
+
+  const { title, description, categoryId, teacherId, price } = req.body;
+  const errors: Record<string, string> = {};
+
+  if (categoryId !== undefined && (isNaN(Number(categoryId)) || Number(categoryId) < 1)) {
+    errors.categoryId = 'Category ID must be a positive number';
+  }
+
+  if (teacherId !== undefined && (isNaN(Number(teacherId)) || Number(teacherId) < 1)) {
+    errors.teacherId = 'Teacher ID must be a positive number';
+  }
+
+  if (price !== undefined && (isNaN(Number(price)) || Number(price) < 0)) {
+    errors.price = 'Price must be a non-negative number';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    throw new ValidationError(errors);
+  }
+
+  const titleStr = title !== undefined ? String(title) : undefined;
+  const descriptionStr = description !== undefined ? String(description) : undefined;
+  const categoryIdNum = categoryId !== undefined ? Number(categoryId) : undefined;
+  const teacherIdNum = teacherId !== undefined ? Number(teacherId) : undefined;
+  const priceNum = price !== undefined ? Number(price) : undefined;
+
+  const course = await updateCourse(
+    courseId,
+    titleStr,
+    descriptionStr,
+    categoryIdNum,
+    teacherIdNum,
+    priceNum
+  );
+
+  if (!course) {
+    throw new NotFoundError('Course');
+  }
+
+  res.json({
+    success: true,
+    data: course
+  });
+});
+
+export const deleteCourseById = asyncHandler(async (req: Request, res: Response) => {
+  const courseId = Number(req.params.id);
+  if (isNaN(courseId)) {
+    throw new BadRequestError('Invalid course ID');
+  }
+
+  const result = await deleteCourse(courseId);
+  if (!result) {
+    throw new NotFoundError('Course');
+  }
+
+  res.json({
+    success: true,
+    message: 'Course deleted successfully'
+  });
+});
