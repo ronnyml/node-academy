@@ -11,6 +11,7 @@ import userRoutes from './routes/user.routes';
 import { authenticate } from './middlewares/auth.middleware';
 import { generateSwaggerDocs, API_VERSION } from './config/swagger.config';
 import logger from './config/logger';
+import { publicLimiter, authLimiter, apiLimiter } from './config/rateLimiters';
 
 const API_BASE_PATH = `/api/${API_VERSION}`;
 
@@ -34,7 +35,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 const swaggerDocs = generateSwaggerDocs();
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-app.get(`${API_BASE_PATH}/health`, (req, res) => {
+app.get(`${API_BASE_PATH}/health`, publicLimiter, (req, res) => {
   logger.info('Health check requested');
   res.status(200).json({
     status: 'ok',
@@ -48,12 +49,12 @@ app.get(API_BASE_PATH, (req, res) => {
   res.send('React Academy API');
 });
 
-app.use(`${API_BASE_PATH}/auth`, authRoutes);
-app.use(`${API_BASE_PATH}/categories`, authenticate, categoryRoutes);
-app.use(`${API_BASE_PATH}/courses`, authenticate, courseRoutes);
-app.use(`${API_BASE_PATH}/course-sections`, authenticate, courseSectionRoutes);
-app.use(`${API_BASE_PATH}/overview`, authenticate, overviewRoutes);
-app.use(`${API_BASE_PATH}/users`, authenticate, userRoutes);
+app.use(`${API_BASE_PATH}/auth`, authLimiter, authRoutes);
+app.use(`${API_BASE_PATH}/categories`, apiLimiter, authenticate, categoryRoutes);
+app.use(`${API_BASE_PATH}/courses`, apiLimiter, authenticate, courseRoutes);
+app.use(`${API_BASE_PATH}/course-sections`, apiLimiter, authenticate, courseSectionRoutes);
+app.use(`${API_BASE_PATH}/overview`, apiLimiter, authenticate, overviewRoutes);
+app.use(`${API_BASE_PATH}/users`, apiLimiter, authenticate, userRoutes);
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   logger.error(`${err.message} - ${req.method} ${req.originalUrl}`, { stack: err.stack });
