@@ -23,7 +23,10 @@ export const getAllCourses = async (
           }
         : {}),
     },
-    orderBy: { publishedAt: 'desc' },
+    orderBy: [
+      { isFeatured: 'desc' },
+      { publishedAt: 'desc' },
+    ],
     skip,
     take,
   });
@@ -54,7 +57,7 @@ export const getAllCourses = async (
 export const getCourseById = async (id: number) => {
   const course = await prisma.course.findUnique({
     where: { id },
-    include: { category: true, teacher: true },
+    include: { category: true, teacher: true, sections: true },
   });
 
   if (!course) throw new Error('Course not found');

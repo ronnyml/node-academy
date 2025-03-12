@@ -22,9 +22,6 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     throw new BadRequestError('Email and password are required');
   }
 
-  const token = await loginUser(email, password);
-  res.status(200).json({
-    success: true,
-    data: { token }
-  });
+  const result = await loginUser(email, password);
+  res.status(result.success ? 200 : 401).json(result);
 });
