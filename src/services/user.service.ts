@@ -1,6 +1,11 @@
 import prisma from '../config/db';
 import { hashPassword } from "../utils/hash";
 
+const excludePasswordHash = <User extends { passwordHash?: string }>(user: User): Omit<User, 'passwordHash'> => {
+  const { passwordHash, ...rest } = user;
+  return rest;
+};
+
 export const createUser = async (
   email: string,
   password: string,
@@ -22,9 +27,15 @@ export const createUser = async (
 };
 
 export const getUserById = async (id: number) => {
-  return await prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id },
   });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  return excludePasswordHash(user);
 };
 
 export const getAllUsers = async (
@@ -52,10 +63,12 @@ export const getAllUsers = async (
     take,
   });
 
+  const usersWithoutPasswordHash = users.map(excludePasswordHash);
+
   const totalUsers = await prisma.user.count({ where: whereCondition });
 
   return {
-    users,
+    users: usersWithoutPasswordHash,
     totalPages: limit ? Math.ceil(totalUsers / take!) : 1,
     currentPage: page,
     totalUsers,
