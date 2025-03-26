@@ -7,6 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Settings {
+  id          Int      @id @default(autoincrement()) @map("settings_id")
+  name        String   @unique @map("company_name") @db.VarChar(100)
+  email       String   @unique @map("company_email") @db.VarChar(255)
+  website     String?  @map("company_website") @db.VarChar(255)
+  themeColor      String?  @map("theme_color") @db.VarChar(7)
+  logoUrl         String?  @map("logo_url") @db.VarChar(255)
+  defaultLanguage String?  @map("default_language") @db.VarChar(10)
+  timezone        String?  @map("timezone") @db.VarChar(50)
+  featuresEnabled Json?    @map("features_enabled")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
 model Role {
   id          Int      @id @default(autoincrement()) @map("role_id")
   name        String   @unique @map("role_name") @db.VarChar(50)
